@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.ae.qa</groupId>
+    <artifactId>automationexercise-tests</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+    <name>AutomationExercise UI Test Framework</name>
+    <description>
+        Selenium + TestNG + Allure UI automation framework for automationexercise.com,
+        with selective Spring Boot configuration/DI and Apache POI test-case generation.
+    </description>
+
+    <properties>
+        <!-- Build: Java 11+ baseline (compatible with 11, 17, 21). -->
+        <maven.compiler.release>11</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- Pinned, mutually-compatible dependency versions.
+             Selenium 4.21 bundles its own driver auto-management (Selenium Manager),
+             so WebDriverManager is optional. Allure 2.27 aligns with TestNG 7.10. -->
+        <selenium.version>4.21.0</selenium.version>
+        <testng.version>7.10.2</testng.version>
+        <allure.version>2.27.0</allure.version>
+        <allure.testng.version>2.27.0</allure.testng.version>
+        <aspectj.version>1.9.22</aspectj.version>
+        <slf4j.version>1.7.36</slf4j.version>
+        <logback.version>1.2.13</logback.version>
+        <!-- Spring Boot 2.7.x is the last line supporting Java 11 (3.x requires Java 17).
+             Pinned here to keep the Java 11+ compatibility promise. -->
+        <spring.boot.version>2.7.18</spring.boot.version>
+        <poi.version>5.2.5</poi.version>
+        <assertj.version>3.25.3</assertj.version>
+
+        <!-- Plugins -->
+        <surefire.version>3.2.5</surefire.version>
+        <compiler.plugin.version>3.13.0</compiler.plugin.version>
+        <allure.maven.version>2.12.0</allure.maven.version>
+
+        <!-- Default suite + groups (overridable from CLI) -->
+        <suiteXmlFile>src/test/resources/testng.xml</suiteXmlFile>
+        <groups></groups>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Spring Boot BOM keeps Spring + its transitive versions consistent. -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring.boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- Selenium WebDriver -->
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>selenium-java</artifactId>
+            <version>${selenium.version}</version>
+        </dependency>
+
+        <!-- TestNG -->
+        <dependency>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <version>${testng.version}</version>
+        </dependency>
+
+        <!-- Allure + TestNG integration -->
+        <dependency>
+            <groupId>io.qameta.allure</groupId>
+            <artifactId>allure-testng</artifactId>
+            <version>${allure.testng.version}</version>
+        </dependency>
+
+        <!-- SLF4J + Logback -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback.version}</version>
+        </dependency>
+
+        <!-- Spring Boot (selective: DI + typed configuration + Spring Test) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+            <exclusions>
+                <!-- avoid pulling JUnit; we drive with TestNG -->
+                <exclusion>
+                    <groupId>org.junit.jupiter</groupId>
+                    <artifactId>junit-jupiter</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- Apache POI for the Excel test-case generator (parity with the offline generator) -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>${poi.version}</version>
+        </dependency>
+
+        <!-- AssertJ: fluent assertions used across the test layer -->
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>${assertj.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${compiler.plugin.version}</version>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${surefire.version}</version>
+                <configuration>
+                    <suiteXmlFiles>
+                        <suiteXmlFile>${suiteXmlFile}</suiteXmlFile>
+                    </suiteXmlFiles>
+                    <!-- Pass -Dgroups=smoke / regression / e2e straight through to TestNG -->
+                    <groups>${groups}</groups>
+                    <!-- AspectJ weaver enables Allure @Step interception -->
+                    <argLine>
+                        -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
+                    </argLine>
+                    <systemPropertyVariables>
+                        <allure.results.directory>${project.build.directory}/allure-results</allure.results.directory>
+                    </systemPropertyVariables>
+                    <testFailureIgnore>false</testFailureIgnore>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.aspectj</groupId>
+                        <artifactId>aspectjweaver</artifactId>
+                        <version>${aspectj.version}</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+
+            <!-- Allure Maven plugin: `mvn allure:report` / `mvn allure:serve` -->
+            <plugin>
+                <groupId>io.qameta.allure</groupId>
+                <artifactId>allure-maven</artifactId>
+                <version>${allure.maven.version}</version>
+                <configuration>
+                    <reportVersion>${allure.version}</reportVersion>
+                    <resultsDirectory>${project.build.directory}/allure-results</resultsDirectory>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
